@@ -1,45 +1,47 @@
-internal async Task<bool> ShouldScheduleAsync(RepositoryConfiguration repoConfig)
+using System;
+using System.Threading.Tasks;
+using Microsoft.CloudMine.Core.Collectors.Clients;
+using Microsoft.CloudMine.Core.Telemetry;
+using Microsoft.CloudMine.SourceCode.Collectors.Core.Model;
+using Microsoft.CloudMine.SourceCode.Collectors.Core.Services;
+
+namespace Microsoft.CloudMine.SourceCode.Collectors.Scheduler.Service
 {
-    try
+    public class SchedulerService : QueueServiceBase
     {
-        RepositoryMetadata repoMetadata = await schedulerHelper.HandleRepositoryMetadataAsync(
-            repoConfig.OrganizationName, repoConfig.RepositoryId
-        ).ConfigureAwait(false);
-        DateTimeOffset? lastCollectionEndDate = repoMetadata.LastCollectionEndDate;
+        private readonly IRedisClient redisClient;
+        private readonly SchedulerHelper schedulerHelper;
+        private readonly TimeProvider timeProvider;
 
-        // Immediately schedule the repository if it has never been scheduled before
-        if (!lastCollectionEndDate.HasValue)
+        public SchedulerService(ITelemetryClient telemetryClient, IRedisClient redisClient, SchedulerHelper schedulerHelper, TimeProvider timeProvider = null)
+            : base(telemetryClient, redisClient, MessageQueueConstants.SchedulerQueue)
         {
-            return true;
+            this.redisClient = redisClient;
+            this.schedulerHelper = schedulerHelper;
+            this.timeProvider = timeProvider ?? TimeProvider.System;
         }
 
-        if (repoConfig.RepositorySchedule.Type == "Cron")
+        protected override async Task RunQueueService(ServiceNotificationMessage message)
         {
-            string cronSchedule = repoConfig.RepositorySchedule.Value;
-            CrontabSchedule schedule;
-            try
+            switch (message.RunState)
             {
-                schedule = CrontabSchedule.Parse(cronSchedule);
-            }
-            catch (CrontabException e)
-            {
-                telemetryClient.TrackException(e, "Cannot parse cron schedule.");
-                return false;
-            }
+                case RunState.RUNNING:
+                    string jobKey = Constants.GetRecordIdentifier(Constants.RepositoryJobPrefix, message.RepositoryState);
+                    await redisClient.SetHashValueAsync(jobKey, message.SessionId.ToString(), new SourceCodeJob
+                    {
+                        Message = message,
+                        UpdateTime = timeProvider.GetUtcNow()
+                    }).ConfigureAwait(false);
+                    break;
 
-            DateTime nextScheduledTime = schedule.GetNextOccurrence(lastCollectionEndDate.Value.UtcDateTime);
-            // Only schedule repository if the current time is greater than or equal to the next scheduled time
-            return timeProvider.GetUtcNow() >= nextScheduledTime;
+                case RunState.SUCCESS:
+                    await schedulerHelper.HandleSuccessfulJobAsync(message).ConfigureAwait(false);
+                    break;
+
+                case RunState.FAILURE:
+                    await schedulerHelper.HandleFailedJobAsync(message).ConfigureAwait(false);
+                    break;
+            }
         }
-        else
-        {
-            // Currently not handling other types of schedules
-            return false;
-        }
-    }
-    catch (Exception e)
-    {
-        telemetryClient.TrackException(e, "Error in ShouldScheduleAsync");
-        throw;
     }
 }
