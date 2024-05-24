@@ -24,32 +24,35 @@ namespace Microsoft.CloudMine.SourceCode.Collectors.Services
         public override async Task Run()
         {
             ServiceNotificationMessage message = await this.RedisClient.PopMessageAsync<ServiceNotificationMessage>(this.QueueName).ConfigureAwait(false);
-            if (message == null) return;
-
-            bool success = true;
-            this.TelemetryClient.TrackEvent("SessionStart", new Dictionary<string, string>
+            if (message != null)
             {
-                { "Message", JsonSerializer.Serialize(message) },
-                { "QueueName", this.QueueName }
-            });
-
-            try
-            {
-                await this.RunQueueService(message).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                this.TelemetryClient.TrackException(ex);
-                success = false;
-                throw;
-            }
-            finally
-            {
-                this.TelemetryClient.TrackEvent("SessionEnd", new Dictionary<string, string>
+                bool success = true;
+                this.TelemetryClient.SessionId = message.SessionId.ToString();
+                this.TelemetryClient.TrackEvent("SessionStart", new Dictionary<string, string>
                 {
                     { "Message", JsonSerializer.Serialize(message) },
-                    { "Success", success.ToString() }
+                    { "QueueName", this.QueueName }
                 });
+
+                try
+                {
+                    await this.RunQueueService(message).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    this.TelemetryClient.TrackException(ex);
+                    success = false;
+                    throw;
+                }
+                finally
+                {
+                    this.TelemetryClient.TrackEvent("SessionEnd", new Dictionary<string, string>
+                    {
+                        { "Message", JsonSerializer.Serialize(message) },
+                        { "Success", success.ToString() }
+                    });
+                    this.TelemetryClient.SessionId = this.ServiceSessionId;
+                }
             }
         }
 
