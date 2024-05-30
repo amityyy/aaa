@@ -23,7 +23,58 @@ namespace Microsoft.CloudMine.SourceCode.Collectors.Services
 
         public override async Task Run()
         {
-            ServiceNotificationMessage message = await this.RedisClient.PopMessageAsync<ServiceNotificationMessage>(this.QueueName).ConfigureAwait(false);
+            bool messageSimulated = false;
+            ServiceNotificationMessage? message = null;
+            if (!messageSimulated)
+            {
+                for (int i = 0; i < 2; i++) // Simulate pushing messages for the first repository to the queue
+                {
+                    message = new ServiceNotificationMessage
+                    {       
+                        RepositoryState = new RepositoryState
+                        {
+                            Id = this.ServiceSessionId,
+                            RepositoryId = "12345",
+                            OrganizationName = "meng",
+                            RepositoryUrl = "test.com"
+                        },
+                        SessionId = Guid.NewGuid(),
+                        RunState = RunState.FAILURE
+                    };
+
+                    await RedisClient.PushMessageAsync(MessageQueueConstants.SchedulerQueue, message).ConfigureAwait(false);
+                }
+                for (int i = 0; i < 2; i++) // Simulate pushing messages for the first repository to the queue
+                {
+                    message = new ServiceNotificationMessage
+                    {       
+                        RepositoryState = new RepositoryState
+                        {
+                            Id = this.ServiceSessionId,
+                            RepositoryId = "12345",
+                            OrganizationName = "meng",
+                            RepositoryUrl = "test.com"
+                        },
+                        SessionId = Guid.NewGuid(),
+                        RunState = RunState.FAILURE
+                    };
+
+                    await RedisClient.PushMessageAsync(MessageQueueConstants.SchedulerQueue, message).ConfigureAwait(false);
+                }
+                messageSimulated = true;
+            }
+            int failedCount = 0;
+            List<String> failedRepositories = new List<String>;
+            ServiceNotificationMessage? failureMessagePop;
+            while ((failureMessagePop = await RedisClient.PopMessageAsync<ServiceNotificationMessage>
+                (MessageQueueConstants .FailureHandlerQueue)) != null) {
+                failedCount++;
+                failedRepositories.Add(failureMessagePop.RepositoryState.RepositoryId);
+            }
+            Console.WriteLine($"Number: {failedCount}");
+            Console. WriteLine($"Repositories: {JsonSerializer.Serialize(failedRepositories)}");
+
+            //ServiceNotificationMessage message = await this.RedisClient.PopMessageAsync<ServiceNotificationMessage>(this.QueueName).ConfigureAwait(false);
             if (message != null)
             {
                 bool success = true;
