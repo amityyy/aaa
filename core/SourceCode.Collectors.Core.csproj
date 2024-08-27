@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>Microsoft.CloudMine.SourceCode.Collectors.Core</AssemblyName>
+    <RootNamespace>Microsoft.CloudMine.SourceCode.Collectors.Core</RootNamespace>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.11.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Collectors\Core\Utility\Core.Utility.csproj" />
+    <ProjectReference Include="..\..\Core\Collectors\Core.Collectors\Core.Collectors.csproj" />
+    <ProjectReference Include="..\..\Core\Collectors\Core.Telemetry\Core.Telemetry.csproj" />
+    <ProjectReference Include="..\SourceCode.Collectors.Clients\SourceCode.Collectors.Clients.csproj" />
+  </ItemGroup>
+
+</Project>
