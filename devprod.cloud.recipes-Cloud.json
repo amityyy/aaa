@@ -1,0 +1,23 @@
+{
+  "DisplayName": "61 Credential Manager Default azreposCredentialType as pat",
+  "UserVisible": false,
+  "Inputs": {
+    "ScriptType": "PWSH",
+    "ScriptTimeoutInSeconds": 60,
+    "InlineScriptLines": [
+      "try {",
+      "    git config --list",
+      "    $authType = git config --global --get credential.azreposCredentialType",
+      "    write-host \"Current default gitfs clone authtype is: $authType\"",
+      "    # Set type of credential.azreposCredentialType to pat",
+      "    write-host \"Current default gitfs clone authtype is: $authType\"",
+      "    0 | Out-File \"$PSScriptRoot/scriptexitcode.txt\"; exit 0;",
+      "} catch {",
+      "    1 | Out-File \"$PSScriptRoot/scriptexitcode.txt\"; exit 1;",
+      "}"
+    ]
+  },
+  "Notes": [
+    "Installing latest git and gitfs to consume credentials from the credential manager while performing unattended gitfs clone."
+  ]
+}
